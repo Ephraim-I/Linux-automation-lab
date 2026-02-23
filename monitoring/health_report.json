@@ -1,0 +1,20 @@
+{
+    "timestamp": "2026-02-23T02:39:15.263580",
+    "cpu_percent": 21.5,
+    "memory": {
+        "total_gb": 11.56,
+        "used_percent": 0.0,
+        "available_gb": 6.24
+    },
+    "swap": {
+        "total_gb": 2.0,
+        "used_percent": 0.0
+    },
+    "load_average": "0.81, 1.06, 1.01",
+    "disk_root": {
+        "total_gb": 233.18,
+        "used_gb": 163.94,
+        "percent_used": 74.1
+    },
+    "status": "HEALTHY"
+}

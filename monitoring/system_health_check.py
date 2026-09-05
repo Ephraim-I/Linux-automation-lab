@@ -3,9 +3,10 @@ import subprocess
 import json
 import sys
 import argparse
+from pathlib import Path
 from datetime import datetime
 
-def get_load_avaerage():
+def get_load_average():
     try:
         result = subprocess.run(
             ["uptime"],
@@ -36,7 +37,7 @@ def generate_report():
         cpu = psutil.cpu_percent(interval=1)
         memory = psutil.virtual_memory()
         swap = psutil.swap_memory()
-        load = get_load_avaerage()
+        load = get_load_average()
         disk = get_disk_usage()
 
         report = {
@@ -44,7 +45,7 @@ def generate_report():
             "cpu_percent": cpu,
             "memory": {
                 "total_gb": round(memory.total / (1024**3), 2),
-                "used_percent": round(memory.percent / (1024**3), 2),
+                "used_percent": round(memory.percent, 2),
                 "available_gb": round(memory.available / (1024**3), 2)
             },
             "swap": {
@@ -56,20 +57,52 @@ def generate_report():
         }
         return report
     except Exception as e:
-        return {"erorr" : str(e)}
+        return {"error" : str(e)}
     
 def evaluate_health(report):
     cpu = report["cpu_percent"]
     mem = report["memory"]["used_percent"]
+    swap = report["swap"]["used_percent"]
     disk = report["disk_root"].get("percent_used", 0)
 
-    if cpu > 90 or mem > 90 or disk > 95:
-        return "CRITICAL", 2
-    elif cpu > 75 or mem > 75 or disk > 85:
-        return "WARNING", 1
+    reasons = []
+    severity = 0
+
+    if cpu > 90:
+        reasons.append(f"CPU usage is critical: {cpu}%")
+        severity = max(severity, 2)
+    elif cpu > 75:
+        reasons.append(f"CPU usage is high: {cpu}%")
+        severity = max(severity, 1)
+
+    if mem > 90:
+        reasons.append(f"Memory usage is critical: {mem}%")
+        severity = max(severity, 2)
+    elif mem > 75:
+        reasons.append(f"Memory usage is high: {mem}%")
+        severity = max(severity, 1)
+
+    if swap > 90:
+        reasons.append(f"Swap usage is critical: {swap}%")
+        severity = max(severity, 2)
+    elif swap > 75:
+        reasons.append(f"Swap usage is high: {swap}%")
+        severity = max(severity, 1)
+
+    if disk > 95:
+        reasons.append(f"Disk usage is critical: {disk}%")
+        severity = max(severity, 2)
+    elif disk > 85:
+        reasons.append(f"Disk usage is high: {disk}%")
+        severity = max(severity, 1)
+
+    if severity == 2:
+        return "CRITICAL", 2, reasons
+    elif severity == 1:
+        return "WARNING", 1, reasons
     else:
-        return "HEALTHY", 0
-    
+        return "HEALTHY", 0, reasons
+
 
 def print_console_report(report):
     print("\nSystem Health Report")
@@ -107,13 +140,19 @@ if __name__ == "__main__":
     args = parse_arguments()
     report = generate_report()
 
-    status, exit_code = evaluate_health(report)
+    status, exit_code, reasons = evaluate_health(report)
     report["status"] = status
+    report["reasons"] = reasons
 
     # Console output
     if not args.json_only:
         print_console_report(report)
         print(f"System Status: {status}")
+
+        if reasons:
+            print("\nReasons:")
+            for reason in reasons:
+                print(f"  - {reason}")
 
     # JSON output (file)
     if not args.no_file:

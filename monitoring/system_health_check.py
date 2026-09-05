@@ -1,72 +1,50 @@
-import psutil
-import subprocess
+import argparse
 import json
 import sys
-import argparse
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
-def get_load_average():
-    try:
-        result = subprocess.run(
-            ["uptime"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        output = result.stdout.strip()
-        load_part = output.split("load average:") [1].strip()
-        return load_part
-    except Exception as e:
-        return f"Error retrieving load average: {e}"
-    
+import psutil
 
-def get_disk_usage():
-    try:
-        disk = psutil.disk_usage('/')
-        return {
-            "total_gb": round(disk.total / (1024**3), 2),
-            "used_gb": round(disk.used / (1024**3), 2),
-            "percent_used": disk.percent
-        }
-    except Exception as e:
-        return {"error": str(e)}
-    
-def generate_report():
-    try:
-        cpu = psutil.cpu_percent(interval=1)
-        memory = psutil.virtual_memory()
-        swap = psutil.swap_memory()
-        load = get_load_average()
-        disk = get_disk_usage()
 
-        report = {
-            "timestamp": datetime.now().isoformat(),
-            "cpu_percent": cpu,
-            "memory": {
-                "total_gb": round(memory.total / (1024**3), 2),
-                "used_percent": round(memory.percent, 2),
-                "available_gb": round(memory.available / (1024**3), 2)
-            },
-            "swap": {
-                "total_gb": round(swap.total / (1024**3), 2),
-                "used_percent": swap.percent
-            },
-            "load_average": load,
-            "disk_root": disk
-        }
-        return report
-    except Exception as e:
-        return {"error" : str(e)}
-    
+def collect_system_health():
+    memory = psutil.virtual_memory()
+    swap = psutil.swap_memory()
+    disk = psutil.disk_usage("/")
+
+    report = {
+        "timestamp": datetime.now().isoformat(),
+        "cpu_percent": psutil.cpu_percent(interval=1),
+        "memory": {
+            "total_gb": round(memory.total / (1024 ** 3), 2),
+            "used_percent": memory.percent,
+            "available_gb": round(memory.available / (1024 ** 3), 2),
+        },
+        "swap": {
+            "total_gb": round(swap.total / (1024 ** 3), 2),
+            "used_percent": swap.percent,
+        },
+        "load_average": ", ".join(
+            f"{value:.2f}" for value in psutil.getloadavg()
+        ),
+        "disk_root": {
+            "total_gb": round(disk.total / (1024 ** 3), 2),
+            "used_gb": round(disk.used / (1024 ** 3), 2),
+            "percent_used": disk.percent,
+        },
+    }
+
+    return report
+
+
 def evaluate_health(report):
     cpu = report["cpu_percent"]
     mem = report["memory"]["used_percent"]
-    swap = report["swap"]["used_percent"]
     disk = report["disk_root"].get("percent_used", 0)
 
-    reasons = []
+    status = "HEALTHY"
     severity = 0
+    reasons = []
 
     if cpu > 90:
         reasons.append(f"CPU usage is critical: {cpu}%")
@@ -82,13 +60,6 @@ def evaluate_health(report):
         reasons.append(f"Memory usage is high: {mem}%")
         severity = max(severity, 1)
 
-    if swap > 90:
-        reasons.append(f"Swap usage is critical: {swap}%")
-        severity = max(severity, 2)
-    elif swap > 75:
-        reasons.append(f"Swap usage is high: {swap}%")
-        severity = max(severity, 1)
-
     if disk > 95:
         reasons.append(f"Disk usage is critical: {disk}%")
         severity = max(severity, 2)
@@ -97,21 +68,33 @@ def evaluate_health(report):
         severity = max(severity, 1)
 
     if severity == 2:
-        return "CRITICAL", 2, reasons
+        status = "CRITICAL"
     elif severity == 1:
-        return "WARNING", 1, reasons
-    else:
-        return "HEALTHY", 0, reasons
+        status = "WARNING"
+
+    return status, severity, reasons
 
 
-def print_console_report(report):
-    print("\nSystem Health Report")
-    print("-" * 40)
+def get_report_path():
+    project_root = Path(__file__).resolve().parent.parent
+    report_dir = project_root / "reports"
+    report_dir.mkdir(exist_ok=True)
 
-    if "error" in report:
-        print("Error generating report:", report["error"])
-        return
-    
+    return report_dir / "health_report.json"
+
+
+def save_report(report):
+    report_path = get_report_path()
+
+    with open(report_path, "w") as f:
+        json.dump(report, f, indent=4)
+
+    return report_path
+
+
+def display_report(report, status, reasons):
+    print("\n## System Health Report\n")
+
     print(f"Timestamp: {report['timestamp']}")
     print(f"CPU Usage: {report['cpu_percent']}%")
     print(f"Load Average: {report['load_average']}")
@@ -119,53 +102,59 @@ def print_console_report(report):
     print(f"Memory Available: {report['memory']['available_gb']}GB")
     print(f"Swap Used: {report['swap']['used_percent']}%")
     print(f"Disk Usage (/): {report['disk_root']['percent_used']}%")
-    print("-" * 40)
+
+    print("---------------------")
+    print(f"\nSystem Status: {status}")
+
+    if reasons:
+        print("\nReasons:")
+        for reason in reasons:
+            print(f"- {reason}")
+
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Linux System Health Check Tool")
-    parser.add_argument(
-        "--json-only",
-        action="store_true",
-        help="Output JSON only (no console report)"
+    parser = argparse.ArgumentParser(
+        description="Linux system health monitoring tool"
     )
 
     parser.add_argument(
-        "--no-file",
+        "--json",
         action="store_true",
-        help="Do not write JSON report to file"
+        help="Save the health report as JSON"
     )
+
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Only display the final health status"
+    )
+
     return parser.parse_args()
 
-if __name__ == "__main__":
+
+def main():
     args = parse_arguments()
-    report = generate_report()
+
+    report = collect_system_health()
 
     status, exit_code, reasons = evaluate_health(report)
+
     report["status"] = status
     report["reasons"] = reasons
 
-    # Console output
-    if not args.json_only:
-        print_console_report(report)
+    if args.quiet:
         print(f"System Status: {status}")
+    else:
+        display_report(report, status, reasons)
 
-        if reasons:
-            print("\nReasons:")
-            for reason in reasons:
-                print(f"  - {reason}")
+    if args.json:
+        report_path = save_report(report)
+        print(f"JSON report saved to {report_path}")
 
-    # JSON output (file)
-    if not args.no_file:
-        try:
-            with open("health_report.json", "w") as f:
-                json.dump(report, f, indent=4)
-            print("JSON report saved to health_report.json")
+    return exit_code
 
-        except Exception as e:
-            print("Failed to write JSON file: ", e)
-            sys.exit(3)
 
-    if args.json_only:
-        print(json.dumps(report, indent=4))
+if __name__ == "__main__":
+    sys.exit(main())
 
-    sys.exit(exit_code)
+    

@@ -3,67 +3,130 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
+from logging.handlers import RotatingFileHandler
 
-import psutil
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import logging
 
-def collect_system_health():
-    memory = psutil.virtual_memory()
-    swap = psutil.swap_memory()
-    disk = psutil.disk_usage("/")
-
-    report = {
-        "timestamp": datetime.now().isoformat(),
-        "cpu_percent": psutil.cpu_percent(interval=1),
-        "memory": {
-            "total_gb": round(memory.total / (1024 ** 3), 2),
-            "used_percent": memory.percent,
-            "available_gb": round(memory.available / (1024 ** 3), 2),
-        },
-        "swap": {
-            "total_gb": round(swap.total / (1024 ** 3), 2),
-            "used_percent": swap.percent,
-        },
-        "load_average": ", ".join(
-            f"{value:.2f}" for value in psutil.getloadavg()
-        ),
-        "disk_root": {
-            "total_gb": round(disk.total / (1024 ** 3), 2),
-            "used_gb": round(disk.used / (1024 ** 3), 2),
-            "percent_used": disk.percent,
-        },
-    }
-
-    return report
+from monitoring.health_monitor import (
+    collect_system_health,
+    evaluate_health,
+    load_config,
+    validate_config,
+)
 
 
-def evaluate_health(report):
+
+def setup_logging():
+    project_root = Path(__file__).resolve().parent.parent
+    log_dir = project_root / "logs"
+    log_dir.mkdir(exist_ok=True)
+
+    log_file = log_dir / "system_health.log"
+
+    handler = RotatingFileHandler(
+        log_file,
+        maxBytes=1024 * 1024,
+        backupCount=3
+    )
+
+    formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(message)s"
+    )
+
+    handler.setFormatter(formatter)
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    if not logger.handlers:
+        logger.addHandler(handler)
+
+    return log_file
+
+
+
+def get_config_path():
+    project_root = Path(__file__).resolve().parent.parent
+    return project_root / "config" / "health_config.json"
+
+
+def load_config():
+    config_path = get_config_path()
+
+    with open(config_path, "r") as f:
+        return json.load(f)
+
+def validate_config(config):
+    required_metrics = ["cpu", "memory", "disk"]
+    required_levels = ["warning", "critical"]
+
+    for metric in required_metrics:
+        if metric not in config:
+            raise ValueError(f"Missing configuration for {metric}")
+
+        for level in required_levels:
+            if level not in config[metric]:
+                raise ValueError(
+                    f"Missing {level} threshold for {metric}"
+                )
+
+            value = config[metric][level]
+
+            if not isinstance(value, (int, float)):
+                raise ValueError(
+                    f"{metric} {level} threshold must be a number"
+                )
+
+            if not 0 <= value <= 100:
+                raise ValueError(
+                    f"{metric} {level} threshold must be between 0 and 100"
+                )
+
+        if config[metric]["warning"] >= config[metric]["critical"]:
+            raise ValueError(
+                f"{metric} warning threshold must be lower "
+                f"than critical threshold"
+            )
+
+
+def evaluate_health(report, config):
     cpu = report["cpu_percent"]
     mem = report["memory"]["used_percent"]
     disk = report["disk_root"].get("percent_used", 0)
 
-    status = "HEALTHY"
+    cpu_warning = config["cpu"]["warning"]
+    cpu_critical = config["cpu"]["critical"]
+
+    mem_warning = config["memory"]["warning"]
+    mem_critical = config["memory"]["critical"]
+
+    disk_warning = config["disk"]["warning"]
+    disk_critical = config["disk"]["critical"]
+
     severity = 0
     reasons = []
 
-    if cpu > 90:
+    if cpu > cpu_critical:
         reasons.append(f"CPU usage is critical: {cpu}%")
         severity = max(severity, 2)
-    elif cpu > 75:
+    elif cpu > cpu_warning:
         reasons.append(f"CPU usage is high: {cpu}%")
         severity = max(severity, 1)
 
-    if mem > 90:
+    if mem > mem_critical:
         reasons.append(f"Memory usage is critical: {mem}%")
         severity = max(severity, 2)
-    elif mem > 75:
+    elif mem > mem_warning:
         reasons.append(f"Memory usage is high: {mem}%")
         severity = max(severity, 1)
 
-    if disk > 95:
+    if disk > disk_critical:
         reasons.append(f"Disk usage is critical: {disk}%")
         severity = max(severity, 2)
-    elif disk > 85:
+    elif disk > disk_warning:
         reasons.append(f"Disk usage is high: {disk}%")
         severity = max(severity, 1)
 
@@ -71,6 +134,8 @@ def evaluate_health(report):
         status = "CRITICAL"
     elif severity == 1:
         status = "WARNING"
+    else:
+        status = "HEALTHY"
 
     return status, severity, reasons
 
@@ -93,7 +158,7 @@ def save_report(report):
 
 
 def display_report(report, status, reasons):
-    print("\n## System Health Report\n")
+    print("\nSystem Health Report\n")
 
     print(f"Timestamp: {report['timestamp']}")
     print(f"CPU Usage: {report['cpu_percent']}%")
@@ -110,6 +175,26 @@ def display_report(report, status, reasons):
         print("\nReasons:")
         for reason in reasons:
             print(f"- {reason}")
+
+    print("Top CPU Processes:")
+
+    for process in report["processes"]["top_cpu"]:
+        print(
+            f"- {process['name']} "
+            f"(PID {process['pid']}): "
+            f"{process['cpu_percent']}% CPU"
+        )
+
+    print()
+
+    print("Top Memory Processes:")
+
+    for process in report["processes"]["top_memory"]:
+        print(
+            f"- {process['name']} "
+            f"(PID {process['pid']}): "
+            f"{process['memory_percent']}% memory"
+        )
 
 
 def parse_arguments():
@@ -135,26 +220,57 @@ def parse_arguments():
 def main():
     args = parse_arguments()
 
-    report = collect_system_health()
+    log_file = setup_logging()
 
-    status, exit_code, reasons = evaluate_health(report)
+    logging.info("System health check started")
 
-    report["status"] = status
-    report["reasons"] = reasons
+    try:
+        report = collect_system_health()
 
-    if args.quiet:
-        print(f"System Status: {status}")
-    else:
-        display_report(report, status, reasons)
+        config = load_config()
+        validate_config(config)
 
-    if args.json:
-        report_path = save_report(report)
-        print(f"JSON report saved to {report_path}")
+        status, exit_code, reasons = evaluate_health(report, config)
 
-    return exit_code
+        logging.info(
+            "Health evaluation completed: status=%s, exit_code=%s",
+            status,
+            exit_code
+        )
+
+        report["status"] = status
+        report["reasons"] = reasons
+
+        for reason in reasons:
+            logging.warning(reason)
+
+        if args.quiet:
+            print(f"System Status: {status}")
+        else:
+            display_report(report, status, reasons)
+
+        if args.json:
+            report_path = save_report(report)
+            logging.info("JSON report saved to %s", report_path)
+            print(f"JSON report saved to {report_path}")
+
+        return exit_code
+
+    except FileNotFoundError:
+        logging.error("Health configuration file was not found.")
+        print("ERROR: Health configuration file was not found.")
+        return 3
+
+    except json.JSONDecodeError:
+        logging.error("Health configuration file contains invalid JSON.")
+        print("ERROR: Health configuration file contains invalid JSON.")
+        return 3
+
+    except ValueError as error:
+        logging.error("Invalid configuration: %s", error)
+        print(f"ERROR: Invalid configuration: {error}")
+        return 3
 
 
 if __name__ == "__main__":
     sys.exit(main())
-
-    

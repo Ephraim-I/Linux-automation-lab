@@ -11,3 +11,7 @@ __pycache__/
 # Generated reports
 health_report.json
 monitoring/health_report.json
+reports/health_report.json
+
+# Logs
+logs/

@@ -15,3 +15,6 @@ reports/health_report.json
 
 # Logs
 logs/
+
+
+reports/health_history.json

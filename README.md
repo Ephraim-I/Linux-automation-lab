@@ -517,6 +517,22 @@ Possible future extensions include:
 
 ---
 
+## 🤖 AI Assistance
+
+ChatGPT was used as a development and learning assistant throughout this project.
+
+Its assistance included:
+- Discussing system architecture and implementation approaches
+- Debugging and reasoning through implementation issues
+- Designing and reviewing tests
+- Improving documentation and project structure
+- Explaining Linux, Python, automation, and software engineering concepts
+
+All implementation decisions, testing, execution, and final integration were performed and verified by the author.
+
+AI assistance is acknowledged as part of the development process, while the author retains responsibility for the project's code, design, and final result.
+
+
 ## 👨‍💻 Author
 
 **Ephraim Iannah**

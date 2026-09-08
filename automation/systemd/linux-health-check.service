@@ -1,0 +1,9 @@
+systemctl --user status linux-health-check.service[Unit]
+Description=Linux Automation Lab System Health Check
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ephraim/Documents/Linux_Analysis_Toolkits/linux-automation-lab
+ExecStart=/home/ephraim/Documents/Linux_Analysis_Toolkits/linux-automation-lab/automation/run_health_check.sh
+SuccessExitStatus=1 2

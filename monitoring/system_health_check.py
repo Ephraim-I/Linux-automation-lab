@@ -17,6 +17,8 @@ from monitoring.health_monitor import (
     validate_config,
 )
 
+from monitoring.health_history import append_history
+from monitoring.health_analysis import get_history_analysis
 
 
 def setup_logging():
@@ -196,6 +198,44 @@ def display_report(report, status, reasons):
             f"{process['memory_percent']}% memory"
         )
 
+def display_history_analysis(analysis):
+    print("\nHealth History Analysis\n")
+
+    summary = analysis["summary"]
+    averages = analysis["averages"]
+    maximums = analysis["maximums"]
+    trends = analysis["trends"]
+    latest = analysis["latest"]
+
+    print(f"Total Checks: {summary['total_checks']}")
+    print(f"Healthy: {summary['healthy']}")
+    print(f"Warning: {summary['warning']}")
+    print(f"Critical: {summary['critical']}")
+
+    print("\nAverage Usage:")
+    print(f"- CPU: {averages['cpu_percent']}%")
+    print(f"- Memory: {averages['memory_percent']}%")
+    print(f"- Swap: {averages['swap_percent']}%")
+    print(f"- Disk: {averages['disk_percent']}%")
+
+    print("\nMaximum Usage:")
+    print(f"- CPU: {maximums['cpu_percent']}%")
+    print(f"- Memory: {maximums['memory_percent']}%")
+    print(f"- Swap: {maximums['swap_percent']}%")
+    print(f"- Disk: {maximums['disk_percent']}%")
+
+    print("\nTrends:")
+    print(f"- CPU: {trends['cpu']}")
+    print(f"- Memory: {trends['memory']}")
+    print(f"- Disk: {trends['disk']}")
+
+    print("\nLatest Status:")
+    if latest:
+        print(f"- {latest['status']}")
+        print(f"- Timestamp: {latest['timestamp']}")
+    else:
+        print("- No health history available")
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -212,6 +252,18 @@ def parse_arguments():
         "--quiet",
         action="store_true",
         help="Only display the final health status"
+    )
+
+    parser.add_argument(
+        "--history",
+        action="store_true",
+        help="Save the current health result to health history",
+    )
+
+    parser.add_argument(
+        "--analyze",
+        action="store_true",
+        help="Analyze recorded health history",
     )
 
     return parser.parse_args()
@@ -240,6 +292,16 @@ def main():
 
         report["status"] = status
         report["reasons"] = reasons
+
+        if args.analyze:
+            analysis = get_history_analysis()
+            display_history_analysis(analysis)
+            return 0
+
+        if args.history:
+            history_path = append_history(report)
+            logging.info("Health history updated: %s", history_path)
+            print(f"Health history updated: {history_path}")   
 
         for reason in reasons:
             logging.warning(reason)

@@ -1,0 +1,125 @@
+[
+    {
+        "timestamp": "2026-09-08T14:46:32.028132",
+        "cpu_percent": 52.7,
+        "memory_percent": 34.0,
+        "swap_percent": 0.0,
+        "disk_percent": 92.5,
+        "status": "WARNING",
+        "reasons": [
+            "Disk usage is high: 92.5%"
+        ]
+    },
+    {
+        "timestamp": "2026-09-08T14:53:55.750338",
+        "cpu_percent": 49.7,
+        "memory_percent": 38.1,
+        "swap_percent": 0.0,
+        "disk_percent": 92.5,
+        "status": "WARNING",
+        "reasons": [
+            "Disk usage is high: 92.5%"
+        ]
+    },
+    {
+        "timestamp": "2026-09-08T14:53:56.964572",
+        "cpu_percent": 20.7,
+        "memory_percent": 38.1,
+        "swap_percent": 0.0,
+        "disk_percent": 92.5,
+        "status": "WARNING",
+        "reasons": [
+            "Disk usage is high: 92.5%"
+        ]
+    },
+    {
+        "timestamp": "2026-09-08T14:53:58.157048",
+        "cpu_percent": 37.8,
+        "memory_percent": 38.0,
+        "swap_percent": 0.0,
+        "disk_percent": 92.5,
+        "status": "WARNING",
+        "reasons": [
+            "Disk usage is high: 92.5%"
+        ]
+    },
+    {
+        "timestamp": "2026-09-08T14:59:13.800236",
+        "cpu_percent": 29.9,
+        "memory_percent": 35.2,
+        "swap_percent": 0.0,
+        "disk_percent": 92.5,
+        "status": "WARNING",
+        "reasons": [
+            "Disk usage is high: 92.5%"
+        ]
+    },
+    {
+        "timestamp": "2026-09-08T14:59:40.496115",
+        "cpu_percent": 62.0,
+        "memory_percent": 35.6,
+        "swap_percent": 0.0,
+        "disk_percent": 92.5,
+        "status": "WARNING",
+        "reasons": [
+            "Disk usage is high: 92.5%"
+        ]
+    },
+    {
+        "timestamp": "2026-09-08T14:59:41.679299",
+        "cpu_percent": 22.4,
+        "memory_percent": 35.6,
+        "swap_percent": 0.0,
+        "disk_percent": 92.5,
+        "status": "WARNING",
+        "reasons": [
+            "Disk usage is high: 92.5%"
+        ]
+    },
+    {
+        "timestamp": "2026-09-08T14:59:42.853844",
+        "cpu_percent": 46.7,
+        "memory_percent": 35.5,
+        "swap_percent": 0.0,
+        "disk_percent": 92.5,
+        "status": "WARNING",
+        "reasons": [
+            "Disk usage is high: 92.5%"
+        ]
+    },
+    {
+        "timestamp": "2026-09-08T15:05:30.735830",
+        "cpu_percent": 29.9,
+        "memory_percent": 39.6,
+        "swap_percent": 0.0,
+        "disk_percent": 92.4,
+        "status": "WARNING",
+        "reasons": [
+            "Disk usage is high: 92.4%"
+        ]
+    },
+    {
+        "timestamp": "2026-09-08T15:05:51.768558",
+        "cpu_percent": 87.2,
+        "memory_percent": 34.9,
+        "swap_percent": 0.0,
+        "disk_percent": 92.4,
+        "status": "WARNING",
+        "reasons": [
+            "CPU usage is high: 87.2%",
+            "Disk usage is high: 92.4%"
+        ]
+    },
+    {
+        "timestamp": "2026-09-08T15:28:17.942610",
+        "cpu_percent": 78.6,
+        "memory_percent": 39.4,
+        "swap_percent": 0.0,
+        "disk_percent": 92.4,
+        "status": "WARNING",
+        "reasons": [
+            "CPU usage is high: 78.6%",
+            "Disk usage is high: 92.4%"
+        ]
+    }
+]

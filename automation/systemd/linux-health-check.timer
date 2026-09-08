@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Linux health check periodically
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Unit=linux-health-check.service
+
+[Install]
+WantedBy=timers.target
